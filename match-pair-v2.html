@@ -1,0 +1,1336 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>增强版对对碰游戏</title>
+    <style>
+        /* ========== 全局样式 ========== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        /* 动态背景动画 */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at 20% 80%, rgba(255, 107, 107, 0.3) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 20%, rgba(78, 205, 196, 0.3) 0%, transparent 50%),
+                        radial-gradient(circle at 40% 40%, rgba(255, 240, 97, 0.2) 0%, transparent 50%);
+            animation: gradientMove 15s ease infinite;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        @keyframes gradientMove {
+            0%, 100% { transform: translate(0, 0); }
+            50% { transform: translate(-25%, -25%); }
+        }
+
+        /* ========== 玻璃态容器 ========== */
+        .glass-container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            max-width: 900px;
+            width: 100%;
+            position: relative;
+            z-index: 1;
+        }
+
+        .game-title {
+            text-align: center;
+            color: white;
+            font-size: 2.5rem;
+            margin-bottom: 25px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+            animation: titlePulse 2s ease-in-out infinite;
+        }
+
+        @keyframes titlePulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        /* ========== 控制面板 ========== */
+        .control-panel {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 25px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+        }
+
+        .difficulty-selector {
+            display: flex;
+            gap: 10px;
+        }
+
+        .difficulty-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 2px solid transparent;
+        }
+
+        .difficulty-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .difficulty-btn.active {
+            background: rgba(255, 255, 255, 0.9);
+            color: #667eea;
+            border-color: white;
+        }
+
+        .control-btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .control-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .control-btn:active {
+            transform: translateY(0);
+        }
+
+        .secondary-btn {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 10px 20px;
+            font-size: 0.9rem;
+            box-shadow: none;
+        }
+
+        /* ========== 游戏统计信息 ========== */
+        .stats-panel {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+            margin-bottom: 25px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+        }
+
+        .stat-item {
+            text-align: center;
+            color: white;
+            min-width: 100px;
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            opacity: 0.8;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+        }
+
+        .stat-value.highlight {
+            color: #ffd700;
+            animation: glow 1s ease-in-out infinite;
+        }
+
+        @keyframes glow {
+            0%, 100% { text-shadow: 0 0 5px #ffd700; }
+            50% { text-shadow: 0 0 20px #ffd700, 0 0 30px #ffa500; }
+        }
+
+        /* ========== 游戏区域 ========== */
+        .game-area {
+            position: relative;
+            margin-bottom: 25px;
+        }
+
+        .game-grid {
+            display: grid;
+            gap: 12px;
+            margin: 0 auto;
+            perspective: 1000px;
+        }
+
+        .game-grid.size-3x3 {
+            grid-template-columns: repeat(3, 1fr);
+            width: 360px;
+        }
+
+        .game-grid.size-4x4 {
+            grid-template-columns: repeat(4, 1fr);
+            width: 420px;
+        }
+
+        .game-grid.size-5x5 {
+            grid-template-columns: repeat(5, 1fr);
+            width: 480px;
+        }
+
+        /* 翻牌卡片 */
+        .card {
+            aspect-ratio: 1;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+        }
+
+        .card.flipped {
+            transform: rotateY(180deg);
+        }
+
+        .card.matched {
+            transform: rotateY(180deg) scale(0.95);
+            opacity: 0.6;
+        }
+
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .card-front {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.8) 100%);
+            transform: rotateY(180deg);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-back {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.9) 0%, rgba(118, 75, 162, 0.9) 100%);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .card-back::before {
+            content: '❓';
+            font-size: 1.8rem;
+            opacity: 0.5;
+        }
+
+        .card:hover:not(.flipped):not(.matched) {
+            transform: scale(1.05);
+        }
+
+        /* ========== Canvas粒子效果层 ========== */
+        #particleCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .floating-score {
+            position: absolute;
+            color: #ffd700;
+            font-size: 1.5rem;
+            font-weight: bold;
+            animation: floatUp 1s ease-out forwards;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            pointer-events: none;
+            z-index: 20;
+        }
+
+        @keyframes floatUp {
+            0% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-50px) scale(1.5);
+            }
+        }
+
+        /* ========== 排行榜 ========== */
+        .leaderboard {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .leaderboard h3 {
+            color: white;
+            text-align: center;
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+        }
+
+        .leaderboard-tabs {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .leaderboard-tab {
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.15);
+            border: none;
+            border-radius: 20px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+
+        .leaderboard-tab:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+
+        .leaderboard-tab.active {
+            background: rgba(255, 255, 255, 0.9);
+            color: #667eea;
+        }
+
+        .leaderboard-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .leaderboard-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            color: white;
+            transition: all 0.3s ease;
+        }
+
+        .leaderboard-row:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .leaderboard-row:nth-child(1) {
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.2) 0%, rgba(255, 215, 0, 0.1) 100%);
+            border: 1px solid rgba(255, 215, 0, 0.3);
+        }
+
+        .leaderboard-row:nth-child(2) {
+            background: linear-gradient(135deg, rgba(192, 192, 192, 0.2) 0%, rgba(192, 192, 192, 0.1) 100%);
+            border: 1px solid rgba(192, 192, 192, 0.3);
+        }
+
+        .leaderboard-row:nth-child(3) {
+            background: linear-gradient(135deg, rgba(205, 127, 50, 0.2) 0%, rgba(205, 127, 50, 0.1) 100%);
+            border: 1px solid rgba(205, 127, 50, 0.3);
+        }
+
+        .rank {
+            font-weight: bold;
+            font-size: 1.2rem;
+            min-width: 40px;
+        }
+
+        .player-info {
+            flex: 1;
+            text-align: center;
+        }
+
+        .player-score {
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        .player-date {
+            font-size: 0.8rem;
+            opacity: 0.7;
+        }
+
+        .clear-leaderboard {
+            padding: 8px 16px;
+            background: rgba(255, 107, 107, 0.3);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            font-size: 0.85rem;
+            margin-top: 15px;
+            width: 100%;
+            transition: all 0.3s ease;
+        }
+
+        .clear-leaderboard:hover {
+            background: rgba(255, 107, 107, 0.5);
+        }
+
+        /* ========== 游戏说明 ========== */
+        .instructions {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+            color: white;
+        }
+
+        .instructions h3 {
+            margin-bottom: 10px;
+            font-size: 1.2rem;
+        }
+
+        .instructions ul {
+            padding-left: 20px;
+            font-size: 0.95rem;
+            line-height: 1.8;
+            opacity: 0.9;
+        }
+
+        .instructions li::marker {
+            color: #ffd700;
+        }
+
+        /* ========== 音乐开关 ========== */
+        .sound-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            border-radius: 50%;
+            width: 45px;
+            height: 45px;
+            cursor: pointer;
+            font-size: 1.3rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.3s ease;
+            z-index: 100;
+        }
+
+        .sound-toggle:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.1);
+        }
+
+        /* ========== 游戏完成弹窗 ========== */
+        .game-over-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .game-over-modal.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            transform: scale(0.8);
+            transition: transform 0.3s ease;
+            max-width: 400px;
+            width: 90%;
+        }
+
+        .game-over-modal.show .modal-content {
+            transform: scale(1);
+        }
+
+        .modal-content h2 {
+            font-size: 2rem;
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+
+        .modal-stats {
+            margin-bottom: 25px;
+        }
+
+        .modal-stat {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .modal-stat:last-child {
+            border-bottom: none;
+        }
+
+        .modal-stat-label {
+            color: #666;
+        }
+
+        .modal-stat-value {
+            font-weight: bold;
+            color: #764ba2;
+        }
+
+        /* ========== 响应式设计 ========== */
+        @media (max-width: 600px) {
+            .glass-container {
+                padding: 20px;
+            }
+
+            .game-title {
+                font-size: 1.8rem;
+            }
+
+            .game-grid.size-3x3,
+            .game-grid.size-4x4,
+            .game-grid.size-5x5 {
+                width: 100%;
+            }
+
+            .control-panel {
+                flex-direction: column;
+            }
+
+            .stats-panel {
+                gap: 10px;
+            }
+
+            .stat-value {
+                font-size: 1.2rem;
+            }
+
+            .card-face {
+                font-size: 1.8rem;
+            }
+
+            .instructions {
+                font-size: 0.85rem;
+            }
+        }
+
+        /* 滚动条样式 */
+        .leaderboard-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .leaderboard-list::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+
+        .leaderboard-list::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+        }
+
+        .empty-leaderboard {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.6);
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="glass-container">
+        <!-- 音效开关按钮 -->
+        <button class="sound-toggle" id="soundToggle" title="音效开关">🔊</button>
+
+        <h1 class="game-title">🎴 对对碰 V2</h1>
+
+        <!-- 控制面板 -->
+        <div class="control-panel">
+            <div class="difficulty-selector">
+                <button class="difficulty-btn active" data-difficulty="3x3">3×3 简单</button>
+                <button class="difficulty-btn" data-difficulty="4x4">4×4 中等</button>
+                <button class="difficulty-btn" data-difficulty="5x5">5×5 困难</button>
+            </div>
+            <button class="control-btn" id="startGame">开始游戏 ▶️</button>
+            <button class="control-btn secondary-btn" id="hintBtn">💡 提示</button>
+            <button class="control-btn secondary-btn" id="restartBtn">🔄 重新开始</button>
+        </div>
+
+        <!-- 统计面板 -->
+        <div class="stats-panel">
+            <div class="stat-item">
+                <div class="stat-label">得分</div>
+                <div class="stat-value highlight" id="score">0</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">时间</div>
+                <div class="stat-value" id="time">00:00</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">连击</div>
+                <div class="stat-value" id="combo">0</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">尝试</div>
+                <div class="stat-value" id="attempts">0</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">准确率</div>
+                <div class="stat-value" id="accuracy">0%</div>
+            </div>
+        </div>
+
+        <!-- 游戏区域 -->
+        <div class="game-area">
+            <canvas id="particleCanvas"></canvas>
+            <div class="game-grid size-3x3" id="gameGrid"></div>
+        </div>
+
+        <!-- 排行榜 -->
+        <div class="leaderboard">
+            <h3>🏆 排行榜 (Top 10)</h3>
+            <div class="leaderboard-tabs">
+                <button class="leaderboard-tab active" data-difficulty="3x3">3×3</button>
+                <button class="leaderboard-tab" data-difficulty="4x4">4×4</button>
+                <button class="leaderboard-tab" data-difficulty="5x5">5×5</button>
+            </div>
+            <div class="leaderboard-list" id="leaderboardList">
+                <div class="empty-leaderboard">暂无记录，快来挑战吧！</div>
+            </div>
+            <button class="clear-leaderboard" id="clearLeaderboard">清除排行榜</button>
+        </div>
+
+        <!-- 游戏说明 -->
+        <div class="instructions">
+            <h3>📖 游戏说明</h3>
+            <ul>
+                <li>选择难度后点击"开始游戏"开始挑战</li>
+                <li>翻牌找出所有相同符号配对</li>
+                <li>连续配对成功可获得连击加分</li>
+                <li>使用提示功能可查看一对符号位置（每次扣5分）</li>
+                <li>完成时间越短、尝试次数越少，得分越高</li>
+                <li>排行榜记录每个难度的前10名成绩</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 游戏完成弹窗 -->
+    <div class="game-over-modal" id="gameOverModal">
+        <div class="modal-content">
+            <h2>🎉 恭喜完成！</h2>
+            <div class="modal-stats">
+                <div class="modal-stat">
+                    <span class="modal-stat-label">最终得分</span>
+                    <span class="modal-stat-value" id="finalScore">0</span>
+                </div>
+                <div class="modal-stat">
+                    <span class="modal-stat-label">游戏时长</span>
+                    <span class="modal-stat-value" id="finalTime">00:00</span>
+                </div>
+                <div class="modal-stat">
+                    <span class="modal-stat-label">尝试次数</span>
+                    <span class="modal-stat-value" id="finalAttempts">0</span>
+                </div>
+                <div class="modal-stat">
+                    <span class="modal-stat-label">最高连击</span>
+                    <span class="modal-stat-value" id="finalCombo">0</span>
+                </div>
+                <div class="modal-stat">
+                    <span class="modal-stat-label">准确率</span>
+                    <span class="modal-stat-value" id="finalAccuracy">0%</span>
+                </div>
+            </div>
+            <button class="control-btn" id="playAgain">再玩一次</button>
+        </div>
+    </div>
+
+    <script>
+        // ========== 游戏配置 ==========
+        const CONFIG = {
+            difficulties: {
+                '3x3': { pairs: 6, size: 9 },
+                '4x4': { pairs: 8, size: 16 },
+                '5x5': { pairs: 12, size: 25 }
+            },
+            emojis: ['🎮', '🎯', '🎲', '🎪', '🎨', '🎭', '🎵', '🎶', '🎹', '🎸', '🎺', '🎻'], // 12个符号，足够5x5使用
+            baseScore: 10,
+            comboMultiplier: 1.5,
+            hintPenalty: 5,
+            timeBonus: 0.5 // 每分钟奖励分数
+        };
+
+        // ========== 游戏状态 ==========
+        let gameState = {
+            difficulty: '3x3',
+            cards: [],
+            flippedCards: [],
+            matchedPairs: 0,
+            score: 0,
+            maxCombo: 0,
+            currentCombo: 0,
+            attempts: 0,
+            successfulAttempts: 0,
+            isPlaying: false,
+            timer: null,
+            seconds: 0,
+            hintUsed: 0,
+            soundEnabled: true
+        };
+
+        // ========== DOM元素 ==========
+        const elements = {
+            gameGrid: document.getElementById('gameGrid'),
+            startGame: document.getElementById('startGame'),
+            restartBtn: document.getElementById('restartBtn'),
+            hintBtn: document.getElementById('hintBtn'),
+            score: document.getElementById('score'),
+            time: document.getElementById('time'),
+            combo: document.getElementById('combo'),
+            attempts: document.getElementById('attempts'),
+            accuracy: document.getElementById('accuracy'),
+            soundToggle: document.getElementById('soundToggle'),
+            particleCanvas: document.getElementById('particleCanvas'),
+            gameOverModal: document.getElementById('gameOverModal'),
+            playAgain: document.getElementById('playAgain'),
+            leaderboardList: document.getElementById('leaderboardList'),
+            clearLeaderboard: document.getElementById('clearLeaderboard'),
+            difficultyBtns: document.querySelectorAll('.difficulty-btn'),
+            leaderboardTabs: document.querySelectorAll('.leaderboard-tab')
+        };
+
+        // ========== 音效系统 ==========
+        const AudioSystem = {
+            audioContext: null,
+
+            init() {
+                try {
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                } catch (e) {
+                    console.log('AudioContext not supported');
+                }
+            },
+
+            playFrequency(frequency, duration, type = 'sine') {
+                if (!this.audioContext || !gameState.soundEnabled) return;
+
+                const oscillator = this.audioContext.createOscillator();
+                const gainNode = this.audioContext.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(this.audioContext.destination);
+
+                oscillator.frequency.value = frequency;
+                oscillator.type = type;
+
+                gainNode.gain.setValueAtTime(0.3, this.audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + duration);
+
+                oscillator.start(this.audioContext.currentTime);
+                oscillator.stop(this.audioContext.currentTime + duration);
+            },
+
+            playMatchSuccess() {
+                // 配对成功：欢快的上升音阶
+                this.playFrequency(523.25, 0.1, 'sine'); // C5
+                setTimeout(() => this.playFrequency(659.25, 0.1, 'sine'), 100); // E5
+                setTimeout(() => this.playFrequency(783.99, 0.2, 'sine'), 200); // G5
+            },
+
+            playGameOver() {
+                // 游戏结束：庆祝音效
+                for (let i = 0; i < 3; i++) {
+                    setTimeout(() => {
+                        this.playFrequency(523.25, 0.15, 'sine');
+                        setTimeout(() => this.playFrequency(659.25, 0.15, 'sine'), 100);
+                        setTimeout(() => this.playFrequency(783.99, 0.15, 'sine'), 200);
+                    }, i * 300);
+                }
+            },
+
+            playButtonClick() {
+                // 按钮点击：短促音效
+                this.playFrequency(800, 0.05, 'square');
+            },
+
+            playFlipCard() {
+                // 翻牌：轻快音效
+                this.playFrequency(600, 0.08, 'sine');
+            },
+
+            playError() {
+                // 错误：低沉音效
+                this.playFrequency(200, 0.2, 'sawtooth');
+            },
+
+            playHint() {
+                // 提示：特殊音效
+                this.playFrequency(1000, 0.1, 'sine');
+                setTimeout(() => this.playFrequency(1200, 0.1, 'sine'), 100);
+            }
+        };
+
+        // ========== 粒子系统 ==========
+        const ParticleSystem = {
+            canvas: null,
+            ctx: null,
+            particles: [],
+
+            init() {
+                this.canvas = elements.particleCanvas;
+                this.ctx = this.canvas.getContext('2d');
+                this.resize();
+                window.addEventListener('resize', () => this.resize());
+                this.animate();
+            },
+
+            resize() {
+                const rect = elements.gameGrid.getBoundingClientRect();
+                this.canvas.width = rect.width;
+                this.canvas.height = rect.height;
+            },
+
+            createExplosion(x, y, color) {
+                const particleCount = 30;
+                for (let i = 0; i < particleCount; i++) {
+                    const angle = (Math.PI * 2 * i) / particleCount;
+                    const speed = 2 + Math.random() * 3;
+                    this.particles.push({
+                        x: x,
+                        y: y,
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed,
+                        size: 3 + Math.random() * 4,
+                        color: color,
+                        life: 1,
+                        decay: 0.02 + Math.random() * 0.02
+                    });
+                }
+            },
+
+            createFirework(x, y) {
+                const colors = ['#ff6b6b', '#4ecdc4', '#ffe66d', '#95e1d3', '#f38181'];
+                for (let wave = 0; wave < 3; wave++) {
+                    setTimeout(() => {
+                        const particleCount = 20;
+                        for (let i = 0; i < particleCount; i++) {
+                            const angle = (Math.PI * 2 * i) / particleCount + Math.random() * 0.5;
+                            const speed = 3 + Math.random() * 4;
+                            this.particles.push({
+                                x: x,
+                                y: y,
+                                vx: Math.cos(angle) * speed,
+                                vy: Math.sin(angle) * speed,
+                                size: 4 + Math.random() * 5,
+                                color: colors[Math.floor(Math.random() * colors.length)],
+                                life: 1,
+                                decay: 0.015 + Math.random() * 0.01
+                            });
+                        }
+                    }, wave * 300);
+                }
+            },
+
+            animate() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+                // 更新和绘制粒子
+                for (let i = this.particles.length - 1; i >= 0; i--) {
+                    const p = this.particles[i];
+
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vy += 0.1; // 重力
+                    p.life -= p.decay;
+
+                    if (p.life <= 0) {
+                        this.particles.splice(i, 1);
+                        continue;
+                    }
+
+                    this.ctx.beginPath();
+                    this.ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+                    this.ctx.fillStyle = p.color;
+                    this.ctx.globalAlpha = p.life;
+                    this.ctx.fill();
+                    this.ctx.globalAlpha = 1;
+                }
+
+                requestAnimationFrame(() => this.animate());
+            }
+        };
+
+        // ========== 排行榜系统 ==========
+        const Leaderboard = {
+            storageKey: 'matchPairGameLeaderboard',
+            currentDifficulty: '3x3',
+
+            load() {
+                try {
+                    const data = localStorage.getItem(this.storageKey);
+                    return data ? JSON.parse(data) : { '3x3': [], '4x4': [], '5x5': [] };
+                } catch (e) {
+                    return { '3x3': [], '4x4': [], '5x5': [] };
+                }
+            },
+
+            save(leaderboard) {
+                localStorage.setItem(this.storageKey, JSON.stringify(leaderboard));
+            },
+
+            addRecord(record) {
+                const leaderboard = this.load();
+                leaderboard[record.difficulty].push(record);
+                // 按分数降序排序，分数相同按时间升序
+                leaderboard[record.difficulty].sort((a, b) => {
+                    if (b.score !== a.score) return b.score - a.score;
+                    return a.seconds - b.seconds;
+                });
+                // 保留前10名
+                leaderboard[record.difficulty] = leaderboard[record.difficulty].slice(0, 10);
+                this.save(leaderboard);
+            },
+
+            display(difficulty) {
+                this.currentDifficulty = difficulty;
+                const leaderboard = this.load();
+                const records = leaderboard[difficulty];
+
+                if (records.length === 0) {
+                    elements.leaderboardList.innerHTML = '<div class="empty-leaderboard">暂无记录，快来挑战吧！</div>';
+                    return;
+                }
+
+                elements.leaderboardList.innerHTML = records.map((record, index) => `
+                    <div class="leaderboard-row">
+                        <div class="rank">${index + 1}</div>
+                        <div class="player-info">
+                            <div class="player-score">${record.score}分</div>
+                            <div class="player-date">${new Date(record.date).toLocaleDateString()} ${new Date(record.date).toLocaleTimeString()}</div>
+                        </div>
+                        <div class="rank">${formatTime(record.seconds)} | ${record.accuracy}%</div>
+                    </div>
+                `).join('');
+            },
+
+            clear() {
+                const leaderboard = this.load();
+                leaderboard[this.currentDifficulty] = [];
+                this.save(leaderboard);
+                this.display(this.currentDifficulty);
+            }
+        };
+
+        // ========== 辅助函数 ==========
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function showFloatingScore(x, y, score, isCombo = false) {
+            const element = document.createElement('div');
+            element.className = 'floating-score';
+            element.textContent = isCombo ? `${score} (连击!)` : `+${score}`;
+            element.style.left = `${x}px`;
+            element.style.top = `${y}px`;
+            elements.gameGrid.parentElement.appendChild(element);
+
+            setTimeout(() => element.remove(), 1000);
+        }
+
+        // ========== 游戏核心逻辑 ==========
+        function initGame() {
+            AudioSystem.init();
+            ParticleSystem.init();
+            Leaderboard.display('3x3');
+            updateStats();
+        }
+
+        function createCards() {
+            const config = CONFIG.difficulties[gameState.difficulty];
+            const selectedEmojis = shuffle([...CONFIG.emojis]).slice(0, config.pairs);
+            let cards = [...selectedEmojis, ...selectedEmojis];
+            cards = shuffle(cards);
+
+            gameState.cards = cards.map((emoji, index) => ({
+                id: index,
+                emoji: emoji,
+                isFlipped: false,
+                isMatched: false
+            }));
+
+            gameState.flippedCards = [];
+            gameState.matchedPairs = 0;
+            gameState.currentCombo = 0;
+        }
+
+        function renderGrid() {
+            elements.gameGrid.className = `game-grid size-${gameState.difficulty}`;
+            elements.gameGrid.innerHTML = '';
+
+            gameState.cards.forEach((card, index) => {
+                const cardElement = document.createElement('div');
+                cardElement.className = 'card';
+                cardElement.dataset.index = index;
+
+                cardElement.innerHTML = `
+                    <div class="card-face card-back"></div>
+                    <div class="card-face card-front">${card.emoji}</div>
+                `;
+
+                cardElement.addEventListener('click', () => flipCard(index));
+                elements.gameGrid.appendChild(cardElement);
+            });
+
+            ParticleSystem.resize();
+        }
+
+        function startGame() {
+            AudioSystem.playButtonClick();
+
+            // 重置游戏状态
+            gameState.score = 0;
+            gameState.maxCombo = 0;
+            gameState.currentCombo = 0;
+            gameState.attempts = 0;
+            gameState.successfulAttempts = 0;
+            gameState.seconds = 0;
+            gameState.hintUsed = 0;
+            gameState.isPlaying = true;
+
+            // 清除之前的计时器
+            if (gameState.timer) {
+                clearInterval(gameState.timer);
+            }
+
+            // 创建并渲染卡片
+            createCards();
+            renderGrid();
+
+            // 启动计时器
+            gameState.timer = setInterval(() => {
+                gameState.seconds++;
+                updateStats();
+            }, 1000);
+
+            updateStats();
+            elements.startGame.textContent = '重新开始';
+        }
+
+        function flipCard(index) {
+            if (!gameState.isPlaying) return;
+
+            const card = gameState.cards[index];
+
+            // 检查卡片是否可以翻转
+            if (card.isFlipped || card.isMatched || gameState.flippedCards.length >= 2) {
+                return;
+            }
+
+            AudioSystem.playFlipCard();
+            card.isFlipped = true;
+            gameState.flippedCards.push(index);
+
+            const cardElement = elements.gameGrid.children[index];
+            cardElement.classList.add('flipped');
+
+            // 如果翻了两张卡片，检查匹配
+            if (gameState.flippedCards.length === 2) {
+                gameState.attempts++;
+                checkMatch();
+            }
+
+            updateStats();
+        }
+
+        function checkMatch() {
+            const [index1, index2] = gameState.flippedCards;
+            const card1 = gameState.cards[index1];
+            const card2 = gameState.cards[index2];
+            const cardElement1 = elements.gameGrid.children[index1];
+            const cardElement2 = elements.gameGrid.children[index2];
+
+            if (card1.emoji === card2.emoji) {
+                // 配对成功
+                card1.isMatched = true;
+                card2.isMatched = true;
+                gameState.matchedPairs++;
+                gameState.successfulAttempts++;
+                gameState.currentCombo++;
+                gameState.maxCombo = Math.max(gameState.maxCombo, gameState.currentCombo);
+
+                // 计算得分：基础分 + 连击加成
+                let points = CONFIG.baseScore * (1 + gameState.currentCombo * 0.5);
+                gameState.score += Math.round(points);
+
+                setTimeout(() => {
+                    cardElement1.classList.add('matched');
+                    cardElement2.classList.add('matched');
+                    AudioSystem.playMatchSuccess();
+
+                    // 粒子效果
+                    const rect1 = cardElement1.getBoundingClientRect();
+                    const rect2 = cardElement2.getBoundingClientRect();
+                    const gridRect = elements.gameGrid.getBoundingClientRect();
+                    const x1 = rect1.left - gridRect.left + rect1.width / 2;
+                    const y1 = rect1.top - gridRect.top + rect1.height / 2;
+                    const x2 = rect2.left - gridRect.left + rect2.width / 2;
+                    const y2 = rect2.top - gridRect.top + rect2.height / 2;
+
+                    ParticleSystem.createExplosion(x1, y1, '#4ecdc4');
+                    ParticleSystem.createExplosion(x2, y2, '#4ecdc4');
+
+                    // 显示得分动画
+                    showFloatingScore((x1 + x2) / 2, (y1 + y2) / 2, Math.round(points), gameState.currentCombo > 1);
+
+                    gameState.flippedCards = [];
+                    updateStats();
+
+                    // 检查游戏是否完成
+                    if (gameState.matchedPairs === CONFIG.difficulties[gameState.difficulty].pairs) {
+                        endGame();
+                    }
+                }, 300);
+
+            } else {
+                // 配对失败
+                gameState.currentCombo = 0;
+                AudioSystem.playError();
+
+                setTimeout(() => {
+                    card1.isFlipped = false;
+                    card2.isFlipped = false;
+                    cardElement1.classList.remove('flipped');
+                    cardElement2.classList.remove('flipped');
+                    gameState.flippedCards = [];
+                }, 1000);
+            }
+        }
+
+        function useHint() {
+            if (!gameState.isPlaying) {
+                AudioSystem.playError();
+                return;
+            }
+
+            // 扣分
+            gameState.score = Math.max(0, gameState.score - CONFIG.hintPenalty);
+            gameState.hintUsed++;
+            updateStats();
+
+            AudioSystem.playHint();
+
+            // 找出未配对的卡片
+            const unmatchedIndices = gameState.cards
+                .map((card, index) => ({ card, index }))
+                .filter(({ card }) => !card.isMatched && !card.isFlipped)
+                .map(({ index }) => index);
+
+            if (unmatchedIndices.length >= 2) {
+                // 随机选择两个未配对的卡片
+                const hintIndices = shuffle(unmatchedIndices).slice(0, 2);
+                hintIndices.forEach(index => {
+                    const cardElement = elements.gameGrid.children[index];
+                    cardElement.style.boxShadow = '0 0 20px #ffd700';
+                    setTimeout(() => {
+                        cardElement.style.boxShadow = '';
+                    }, 1500);
+                });
+            }
+
+            updateStats();
+        }
+
+        function endGame() {
+            gameState.isPlaying = false;
+            clearInterval(gameState.timer);
+
+            // 计算时间奖励
+            const timeBonus = Math.round(gameState.seconds * CONFIG.timeBonus);
+            gameState.score = Math.max(0, gameState.score - timeBonus);
+
+            // 计算准确率
+            const accuracy = gameState.attempts > 0
+                ? Math.round((gameState.successfulAttempts / gameState.attempts) * 100)
+                : 100;
+
+            // 播放完成音效
+            setTimeout(() => {
+                AudioSystem.playGameOver();
+            }, 500);
+
+            // 庆祝烟花效果
+            setTimeout(() => {
+                const gridRect = elements.gameGrid.getBoundingClientRect();
+                ParticleSystem.createFirework(gridRect.width / 2, gridRect.height / 2);
+            }, 500);
+
+            // 更新排行榜
+            const record = {
+                difficulty: gameState.difficulty,
+                score: gameState.score,
+                seconds: gameState.seconds,
+                attempts: gameState.attempts,
+                combo: gameState.maxCombo,
+                accuracy: accuracy,
+                hintUsed: gameState.hintUsed,
+                date: Date.now()
+            };
+            Leaderboard.addRecord(record);
+            Leaderboard.display(gameState.difficulty);
+
+            // 显示完成弹窗
+            setTimeout(() => {
+                showGameOverModal(accuracy);
+            }, 1500);
+
+            updateStats();
+        }
+
+        function showGameOverModal(accuracy) {
+            document.getElementById('finalScore').textContent = gameState.score;
+            document.getElementById('finalTime').textContent = formatTime(gameState.seconds);
+            document.getElementById('finalAttempts').textContent = gameState.attempts;
+            document.getElementById('finalCombo').textContent = gameState.maxCombo;
+            document.getElementById('finalAccuracy').textContent = accuracy + '%';
+            elements.gameOverModal.classList.add('show');
+        }
+
+        function hideGameOverModal() {
+            elements.gameOverModal.classList.remove('show');
+        }
+
+        function updateStats() {
+            elements.score.textContent = gameState.score;
+            elements.time.textContent = formatTime(gameState.seconds);
+            elements.combo.textContent = gameState.currentCombo;
+            elements.attempts.textContent = gameState.attempts;
+
+            const accuracy = gameState.attempts > 0
+                ? Math.round((gameState.successfulAttempts / gameState.attempts) * 100)
+                : 100;
+            elements.accuracy.textContent = accuracy + '%';
+        }
+
+        // ========== 事件监听 ==========
+        elements.startGame.addEventListener('click', startGame);
+
+        elements.restartBtn.addEventListener('click', () => {
+            AudioSystem.playButtonClick();
+            startGame();
+        });
+
+        elements.hintBtn.addEventListener('click', useHint);
+
+        elements.playAgain.addEventListener('click', () => {
+            hideGameOverModal();
+            AudioSystem.playButtonClick();
+            startGame();
+        });
+
+        elements.soundToggle.addEventListener('click', () => {
+            gameState.soundEnabled = !gameState.soundEnabled;
+            elements.soundToggle.textContent = gameState.soundEnabled ? '🔊' : '🔇';
+            AudioSystem.playButtonClick();
+        });
+
+        // 难度选择
+        elements.difficultyBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                AudioSystem.playButtonClick();
+                elements.difficultyBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                gameState.difficulty = btn.dataset.difficulty;
+                elements.gameGrid.className = `game-grid size-${gameState.difficulty}`;
+            });
+        });
+
+        // 排行榜标签切换
+        elements.leaderboardTabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                AudioSystem.playButtonClick();
+                elements.leaderboardTabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                Leaderboard.display(tab.dataset.difficulty);
+            });
+        });
+
+        // 清除排行榜
+        elements.clearLeaderboard.addEventListener('click', () => {
+            if (confirm('确定要清除当前难度的排行榜吗？')) {
+                AudioSystem.playButtonClick();
+                Leaderboard.clear();
+            }
+        });
+
+        // 点击弹窗外部关闭
+        elements.gameOverModal.addEventListener('click', (e) => {
+            if (e.target === elements.gameOverModal) {
+                hideGameOverModal();
+            }
+        });
+
+        // ========== 初始化 ==========
+        document.addEventListener('DOMContentLoaded', initGame);
+    </script>
+</body>
+</html>
